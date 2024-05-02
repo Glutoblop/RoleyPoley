@@ -1,0 +1,13 @@
+name: roleypoley
+
+services:
+
+  roleypoley:
+    restart: always
+    build: .
+    volumes:
+      - cached_db:/app/RoleyPoleyCache
+    
+
+volumes:
+  cached_db:

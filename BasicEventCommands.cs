@@ -1,0 +1,74 @@
+﻿using Discord;
+using Discord.Interactions;
+using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
+using RoleyPoley.Core.Interfaces;
+using RoleyPoley.Data;
+
+namespace RoleyPoley
+{
+    [RequireContext(ContextType.Guild)]
+    [RequireUserPermission(GuildPermission.ManageRoles)]
+    public class BasicEventCommands : InteractionModuleBase<InteractionContext>
+    {
+        private readonly IServiceProvider _Services;
+
+        public BasicEventCommands(IServiceProvider services)
+        {
+            _Services = services;
+        }
+
+        [SlashCommand("react_role", "Add a reaction role assignment to this message", runMode: RunMode.Async)]
+        public async Task AddReactionRoleToMessage(string msgId, string emojiString, IRole role)
+        {
+            await DeferAsync(true);
+
+            Emoji emoji = new Emoji(emojiString);
+            if (emoji == null)
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = $"{emojiString} is not a valid Emoji.";
+                });
+                return;
+            }
+
+            IMessage msg = null;
+            var channel = (Context.Interaction as SocketSlashCommand).Channel;
+            if (ulong.TryParse(msgId, out ulong messageId))
+            {
+                msg = await channel.GetMessageAsync(messageId);
+                if (msg == null)
+                {
+                    await ModifyOriginalResponseAsync(properties =>
+                    {
+                        properties.Content = $"Cannot find message in channel <#{channel.Id}>";
+                    });
+                    return;
+                }
+            }
+
+            var db = _Services.GetRequiredService<IDatabase>();
+            var roleData = await db.GetAsync<RoleData>($"RoleData/{msgId}");
+            if (roleData == null)
+            {
+                roleData = new RoleData
+                {
+                    MessageId = messageId,
+                    EmojiRoles = new Dictionary<string, ulong>()
+                };
+            }
+
+            roleData.EmojiRoles.TryAdd(emojiString, role.Id);
+
+            await db.PutAsync($"RoleData/{msgId}", roleData);
+
+            await msg.AddReactionAsync(new Emoji(emojiString));
+
+            await ModifyOriginalResponseAsync(properties =>
+            {
+                properties.Content = "Blah";
+            });
+        }
+    }
+}
