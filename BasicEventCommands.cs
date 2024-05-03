@@ -9,7 +9,6 @@ using RoleyPoley.Data;
 namespace RoleyPoley
 {
     [RequireContext(ContextType.Guild)]
-    [RequireUserPermission(GuildPermission.ManageRoles)]
     public class BasicEventCommands : InteractionModuleBase<InteractionContext>
     {
         private readonly IServiceProvider _Services;
@@ -19,6 +18,8 @@ namespace RoleyPoley
             _Services = services;
         }
 
+        [EnabledInDm(false)]
+        [DefaultMemberPermissions(GuildPermission.ManageRoles)]
         [SlashCommand("react_role", "Add a reaction role assignment to this message", runMode: RunMode.Async)]
         public async Task AddReactionRoleToMessage(string msgId, string emojiString, IRole role)
         {
