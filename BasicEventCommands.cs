@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.Interactions;
+using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using RoleyPoley.Core.Interfaces;
@@ -23,16 +24,6 @@ namespace RoleyPoley
         {
             await DeferAsync(true);
 
-            Emoji emoji = new Emoji(emojiString);
-            if (emoji == null)
-            {
-                await ModifyOriginalResponseAsync(properties =>
-                {
-                    properties.Content = $"{emojiString} is not a valid Emoji.";
-                });
-                return;
-            }
-
             IMessage msg = null;
             var channel = (Context.Interaction as SocketSlashCommand).Channel;
             if (ulong.TryParse(msgId, out ulong messageId))
@@ -46,6 +37,48 @@ namespace RoleyPoley
                     });
                     return;
                 }
+            }
+
+            bool addedReaction = false;
+            bool customEmoji = emojiString.StartsWith("<");
+
+            IEmote emoji = null;
+
+            if (customEmoji)
+            {
+                try
+                {
+                    emoji = Context.Guild.Emotes.FirstOrDefault(e => e.Name == emojiString);
+                    await msg.AddReactionAsync(emoji);
+                    addedReaction = true;
+                }
+                catch (Exception exception)
+                {
+                    // ignored
+                }
+            }
+            else
+            {
+                try
+                {
+                    emoji = new Emoji(emojiString);
+                    await msg.AddReactionAsync(emoji);
+                    addedReaction = true;
+                }
+                catch (Exception e)
+                {
+                    // ignored
+                }
+            }
+
+            if (!addedReaction)
+            {
+                var content = customEmoji ? $"Custom Emoji's can only be used if its on the **owning** Discord Server." : $"{emojiString} is incompatible.";
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = content;
+                });
+                return;
             }
 
             var db = _Services.GetRequiredService<IDatabase>();
@@ -62,12 +95,10 @@ namespace RoleyPoley
             roleData.EmojiRoles.TryAdd(emojiString, role.Id);
 
             await db.PutAsync($"RoleData/{msgId}", roleData);
-
-            await msg.AddReactionAsync(new Emoji(emojiString));
-
+            
             await ModifyOriginalResponseAsync(properties =>
             {
-                properties.Content = "Blah";
+                properties.Content = $"When a user reacts to {msg.GetJumpUrl()} with {emoji} they'll get <@&{role.Id}>";
             });
         }
     }
