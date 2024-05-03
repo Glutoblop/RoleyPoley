@@ -19,7 +19,7 @@ namespace RoleyPoley
         }
 
         [EnabledInDm(false)]
-        [DefaultMemberPermissions(GuildPermission.ManageRoles)]
+        [DefaultMemberPermissions(GuildPermission.Administrator)]
         [SlashCommand("react_role", "Add a reaction role assignment to this message", runMode: RunMode.Async)]
         public async Task AddReactionRoleToMessage(string msgId, string emojiString, IRole role)
         {
