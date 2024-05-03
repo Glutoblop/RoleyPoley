@@ -66,6 +66,13 @@ namespace RoleyPoley
         private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> msgCache, Cacheable<IMessageChannel, ulong> channelCache)
         {
             _Logger?.Log($"[HandleMessageDeleted]", ELogType.Log);
+
+            var db = _Services.GetRequiredService<IDatabase>();
+            var roleData = await db.GetAsync<RoleData>($"RoleData/{msgCache.Id}");
+            if (roleData != null)
+            {
+                await db.DeleteAsync($"RoleData/{msgCache.Id}");
+            }
         }
 
         private async Task HandleButtonPressed(SocketMessageComponent arg)
