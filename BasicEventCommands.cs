@@ -1,6 +1,5 @@
 ﻿using Discord;
 using Discord.Interactions;
-using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using RoleyPoley.Core.Interfaces;
@@ -21,23 +20,39 @@ namespace RoleyPoley
         [EnabledInDm(false)]
         [DefaultMemberPermissions(GuildPermission.Administrator)]
         [SlashCommand("react_role", "Add a reaction role assignment to this message", runMode: RunMode.Async)]
-        public async Task AddReactionRoleToMessage(string msgId, string emojiString, IRole role)
+        public async Task AddReactionRoleToMessage(
+            [Summary(name: "MessageLink", description: "The Message Link of the message you want to add a reaction role.")] string messageLink,
+            [Summary(name: "EmojiString", description: "The emoji to use as the reaction")] string emojiString,
+            [Summary(name: "Role", description: "The role this reaction will add.")] IRole role)
         {
             await DeferAsync(true);
 
-            IMessage msg = null;
+            IMessage? msg = null;
+            ulong msgId = 0;
             var channel = (Context.Interaction as SocketSlashCommand).Channel;
-            if (ulong.TryParse(msgId, out ulong messageId))
+
+            try
             {
-                msg = await channel.GetMessageAsync(messageId);
-                if (msg == null)
+                string myMessageId = messageLink.Split("/")[^1];
+                if (ulong.TryParse(myMessageId, out msgId))
                 {
-                    await ModifyOriginalResponseAsync(properties =>
-                    {
-                        properties.Content = $"Cannot find message in channel <#{channel.Id}>";
-                    });
-                    return;
+                    msg = await channel.GetMessageAsync(msgId);
                 }
+            }
+            catch (Exception e)
+            {
+                //ignored
+            }
+
+            
+            msg = await channel.GetMessageAsync(msgId);
+            if (msg == null)
+            {
+                await ModifyOriginalResponseAsync(properties =>
+                {
+                    properties.Content = $"Cannot find message in channel <#{channel.Id}>";
+                });
+                return;
             }
 
             bool addedReaction = false;
@@ -88,7 +103,7 @@ namespace RoleyPoley
             {
                 roleData = new RoleData
                 {
-                    MessageId = messageId,
+                    MessageId = msgId,
                     EmojiRoles = new Dictionary<string, ulong>()
                 };
             }
@@ -96,7 +111,7 @@ namespace RoleyPoley
             roleData.EmojiRoles.TryAdd(emojiString, role.Id);
 
             await db.PutAsync($"RoleData/{msgId}", roleData);
-            
+
             await ModifyOriginalResponseAsync(properties =>
             {
                 properties.Content = $"When a user reacts to {msg.GetJumpUrl()} with {emoji} they'll get <@&{role.Id}>";
