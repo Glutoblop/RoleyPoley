@@ -62,9 +62,17 @@ namespace RoleyPoley
 
             if (customEmoji)
             {
+                //eg: <:test:1271108294609735701>
                 try
                 {
-                    emoji = Context.Guild.Emotes.FirstOrDefault(e => e.Name == emojiString);
+                    var iconString = emojiString.Remove(0,2);
+                    iconString = iconString.Remove(iconString.Length - 1,1);
+                    var iconData = iconString.Split(":".ToCharArray());
+                    iconString = iconData[1];
+
+                    ulong iconId = ulong.Parse(iconString);
+
+                    emoji = Context.Guild.Emotes.FirstOrDefault(e => e.Id == iconId);
                     await msg.AddReactionAsync(emoji);
                     addedReaction = true;
                 }
